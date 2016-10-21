@@ -1,75 +1,86 @@
 /**
- * GPS grab and store:
+ * Air grab and store:
  * @param {Object} tdx Api object.
  * @param {Object} output functions.
  * @param {Object} packageParams of the databot.
  */
-function GrabPark(tdxApi, output, packageParams) {
-    var req = function (el, cb) {
+function GrabAir(tdxApi, output, packageParams) {
+    var req = function (cb) {
+        var ttl;
 
-        output.debug("Processing element Host:%s", el.Host);
+        output.debug("Processing element Host:%s", packageParams.host);
 
         request
-            .get(el.Host + el.Path)
-            .auth(el.APIKey, '')
+            .get(packageParams.host + packageParams.path + packageParams.groupName + packageParams.prefixPath)
+            .accept('json')
             .end((error, response) => {
                 if (error) {
                     output.error("API request error: %s", error);
-                    cb();
+                    cb(error, null);
                 } else {
-                    parseXmlStringAsync(response.text)
-                        .then((result) => {
-                            var entryList = [];
-                            _.forEach(result.feed.datastream, (val) => {
-                                if (idList.indexOf(Number(val['$']['id'])) > -1) {
-                                    var entry = {
-                                        'ID': Number(val['$']['id']),
-                                        'timestamp': Number(new Date(val.current_time[0]).getTime()),
-                                        'currentvalue': Number(val.current_value[0]),
-                                        'maxvalue': Number(val.max_value[0])
-                                    };
+                    var entryList = [];
 
-                                    entryList.push(entry);
-                                }
+                    ttl = Number(response.body.HourlyAirQualityIndex['@TimeToLive']);
+                    output.debug("Data TTL:%d", ttl);
+
+                    _.forEach(response.body.HourlyAirQualityIndex.LocalAuthority, (valSite) => {
+                        if (valSite.Site !== undefined) {
+
+                            if (!_.isArray(valSite.Site))
+                                valSite.Site = [valSite.Site];
+
+                            _.forEach(valSite.Site, (speciesObj) => {
+                                var timestamp = new Date(speciesObj['@BulletinDate']).getTime();
+                                var siteCode = speciesObj['@SiteCode'];
+                                var species = {};
+
+                                if (!_.isArray(speciesObj.Species))
+                                    speciesObj.Species = [speciesObj.Species];
+
+                                _.forEach(speciesObj.Species, (val) => {
+                                    species[val['@SpeciesCode']] = Number(val['@AirQualityIndex']);
+                                });
+
+                                var entry = {
+                                    'timestamp': timestamp,
+                                    'SiteCode': siteCode,
+                                    'Species': species
+                                };
+
+                                entryList.push(entry);
                             });
+                        }
+                    })
 
-                            return tdxApi.updateDatasetDataAsync(packageParams.parkDataTable, entryList, true);
-                        })
+                    tdxApi.addDatasetDataAsync(packageParams.airDataTable, entryList)
                         .then((res) => {
-                            // TDX API result.
-                            output.debug(res);
-                            return ({ error: false });
+                            output.error("Added %d entries to dataset", entryList.length);
+                            return cb(null, ttl);
                         })
-                        .catch((err) => {
-                            // TDX API error or XML parse error.
-                            output.error(err);
-                            output.error("Failure processing entries: %s", err.message);
-                            return ({ error: true });
-                        })
-                        .then((res) => {
-                            // Finish execution
-                            return cb(res);
+                        .catch((error) => {
+                            output.error("Error adding data to dataset:%s", JSON.stringify(error));
+                            return cb(error, ttl);
                         });
                 }
-            });
-    }
 
-    req(element, (res) => {
-                output.debug(res);
-                //computing = false;
             });
-    /*
-    var computing = false;
-    var timer = setInterval(() => {
-        if (!computing) {
-            computing = true;
-            req(element, (res) => {
-                output.debug(res);
-                computing = false;
-            });
-        }
-    }, packageParams.timerFrequency);
-    */
+    };
+
+    var timerFun = function() {
+        req((error, ttl) => {
+                var delay = packageParams.defaultDelay;
+
+                if (ttl!=null)
+                    delay = (ttl+1)*60*1000;
+                
+                output.debug("Set timer to: %d", delay);
+
+                setTimeout(timerFun, delay);
+        });
+    };
+
+    setTimeout(timerFun, 0);
+
 }
 
 /**
@@ -95,7 +106,7 @@ function databot(input, output, context) {
             output.error("%s", JSON.stringify(err));
             process.exit(1);
         } else {
-            GrabPark(tdxApi, output, context.packageParams);
+            GrabAir(tdxApi, output, context.packageParams);
         }
     });
 }
@@ -107,7 +118,7 @@ var Promise = require("bluebird");
 var TDXAPI = require("nqm-api-tdx");
 
 if (process.env.NODE_ENV == 'test') {
-    // Requires nqm-databot-gpsgrab.json file for testing
+    // Requires nqm-databot-airgrab.json file for testing
     input = require('./databot-test.js')(process.argv[2]);
 } else {
     // Load the nqm input module for receiving input from the process host.
