@@ -1,6 +1,6 @@
 {
   "name": "nqm-databot-airgrab",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Databot to grab Air quality data",
   "main": "index.js",
   "scripts": {
@@ -17,12 +17,7 @@
   },
   "homepage": "https://github.com/nqminds/nqm-databot-airgrab#readme",
   "dependencies": {
-    "bluebird": "^3.4.6",
     "debug": "^2.2.0",
-    "lodash": "^4.16.4",
-    "nqm-api-tdx": "^0.1.18",
-    "nqm-databot-utils": "^0.1.4",
-    "superagent": "^2.3.0",
     "xml2js": "^0.4.17"
   },
   "devDependencies": {}
