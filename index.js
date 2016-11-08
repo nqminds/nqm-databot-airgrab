@@ -52,7 +52,7 @@ function GrabAir(tdxApi, output, packageParams) {
                         }
                     })
 
-                    tdxApi.addDatasetDataAsync(packageParams.airDataTable, entryList)
+                    tdxApi.updateDatasetDataAsync(packageParams.airDataTable, entryList, true)
                         .then((res) => {
                             // TDX API result.
                             output.error("Added %d entries to dataset", entryList.length);
