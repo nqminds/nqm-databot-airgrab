@@ -1,6 +1,6 @@
 {
   "name": "nqm-databot-airgrab",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Databot to grab Air quality data",
   "main": "index.js",
   "scripts": {

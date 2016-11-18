@@ -55,9 +55,6 @@ function GrabAir(tdxApi, output, packageParams) {
                     tdxApi.updateDatasetDataAsync(packageParams.airDataTable, entryList, true)
                         .then((res) => {
                             // TDX API result.
-                            output.error("Added %d entries to dataset", entryList.length);
-                            output.debug(res);
-                            output.debug("Saving %d entries to airDataTableLatest", entryList.length);
                             return tdxApi.updateDatasetDataAsync(packageParams.airDataTableLatest, entryList, true);
                         })
                         .catch((error) => {
@@ -65,6 +62,7 @@ function GrabAir(tdxApi, output, packageParams) {
                             return cb(error, ttl);
                         })
                         .then((res) => {
+                            output.debug("Saving %d entries to airDataTable", entryList.length);
                             return cb(null, ttl);
                         });
                 }
